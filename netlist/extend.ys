@@ -1,3 +1,0 @@
-read_verilog -sv -formal -overwrite {workspace}/extend.v
-design -reset-vlog; proc;
-write_json {workspace}/netlist/extend.json

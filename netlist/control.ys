@@ -1,5 +1,0 @@
-read_verilog -sv -formal -overwrite {workspace}/maindec.v
-read_verilog -sv -formal -overwrite {workspace}/aludec.v
-read_verilog -sv -formal -overwrite {workspace}/control.v
-design -reset-vlog; proc;
-write_json {workspace}/netlist/control.json

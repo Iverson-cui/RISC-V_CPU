@@ -1,3 +1,0 @@
-read_verilog -sv -formal -overwrite {workspace}/regfile.v
-design -reset-vlog; proc;
-write_json {workspace}/netlist/regfil.json
