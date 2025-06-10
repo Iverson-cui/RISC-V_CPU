@@ -1,6 +1,7 @@
 module RISCVsingle(
         input  clk,
         input  reset,
+        // aside from what's needed to interact with imem and dmem, what's left is the clk and reset
         input  [31:0] instr,
         input  [31:0] read_data,
         output [31:0] pc,
@@ -30,6 +31,37 @@ module RISCVsingle(
                 .ImmSrc     	(ImmSrc      ),
                 .RegWrite   	(RegWrite    )
             );
+
+    // output declaration of module hazardunit
+    // only declaration. how it connects to this RISCVsingle module is not finished.
+    wire StallF;
+    wire StallD;
+    wire FlushD;
+    wire FlushE;
+    wire [1:0] ForwardAE;
+    wire [1:0] ForwardBE;
+
+    hazardunit u_hazardunit(
+                   .Rs1D        	(Rs1D         ),
+                   .Rs2D        	(Rs2D         ),
+                   .Rs1E        	(Rs1E         ),
+                   .Rs2E        	(Rs2E         ),
+                   .RdE         	(RdE          ),
+                   .PCSrcE      	(PCSrcE       ),
+                   .ResultSrcE0 	(ResultSrcE0  ),
+                   .RdM         	(RdM          ),
+                   .RegWriteM   	(RegWriteM    ),
+                   .RdW         	(RdW          ),
+                   .RegWriteW   	(RegWriteW    ),
+                   .StallF      	(StallF       ),
+                   .StallD      	(StallD       ),
+                   .FlushD      	(FlushD       ),
+                   .FlushE      	(FlushE       ),
+                   .ForwardAE   	(ForwardAE    ),
+                   .ForwardBE   	(ForwardBE    )
+               );
+
+
 
 
     // output declaration of module alu
@@ -101,17 +133,32 @@ module RISCVsingle(
              .out 	(PCNext  )
          );
 
-    // output declaration of module flopr
-    reg [31:0] q;
+    // // output declaration of module flopr
+    // reg [31:0] q;
 
-    flopr #(
-              .WIDTH 	(32  ))
-          u_flopr(
-              .clk   	(clk    ),
-              .reset 	(0  ),
-              .d     	(PCNext      ),
-              .q     	(pc      )
-          );
+
+    // flopr #(
+    //           .WIDTH 	(32  ))
+    //       u_flopr(
+    //           .clk   	(clk    ),
+    //           .reset 	(0  ),
+    //           .d     	(PCNext      ),
+    //           .q     	(pc      )
+    //       );
+
+    // first pipeline register
+    param_dff #(
+                  .WIDTH 	(32  ))
+              u_param_dff(
+                  .clk   	(clk    ),
+                  // in the module, reset is active low
+                  .rst_n 	(~reset  ),
+                  .flush 	(0  ),
+                  .stall 	(StallF  ),
+                  .d     	(PCNext      ),
+                  .q     	(pc      )
+              );
+
 
     // output declaration of module mux3
     wire [31:0] out;
