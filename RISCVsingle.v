@@ -10,26 +10,53 @@ module RISCVsingle(
         output [31:0] DataAddr,
     );
 
+    // second pipeline register
+    // output declaration of module param_dff
+    wire [95:0] q;
+    wire[31:0] PCPlus4D;
+    wire[31:0] pcD;
+    wire[31:0] instrD;
+    wire [4:0] Rs1D;
+    wire [4;0] Rs2D;
+    wire [4;0] RdD;
+
+    param_dff #(
+                  .WIDTH 	(96  ))
+              u_param_dff(
+                  .clk   	(clk    ),
+                  .rst_n 	(~reset  ),
+                  .flush 	(FlushD  ),
+                  .stall 	(StallD  ),
+                  .d     	({instr,pc,PCPlus4F}     ),
+                  .q     	(q      )
+              );
+
+    assign q[31:0]=PCPlus4D;
+    assign q[63:32]=pcD;
+    assign q[92:64]=instrD;
     // output declaration of module control
-    wire PCSrc;
-    wire [1:0] ResultSrc;
-    wire [2:0] ALUControl;
-    wire ALUSrc;
-    wire [1:0] ImmSrc;
-    wire RegWrite;
-    wire zero;
+    wire jumpD;
+    wire branchD;
+    wire [1:0] ResultSrcD;
+    wire [2:0] ALUControlD;
+    wire ALUSrcD;
+    wire [1:0] ImmSrcD;
+    wire RegWriteD;
+    //wire zero;
     control u_control(
-                .op         	(instr[6:0]          ),
-                .funct3     	(instr[14:12]      ),
-                .funct7b5   	(instr[30]    ),
-                .zero       	(zero        ), // from ALU
-                .PCSrc      	(PCSrc       ),
-                .ResultSrc  	(ResultSrc   ),
-                .MemWrite   	(write_ena    ),
-                .ALUControl 	(ALUControl  ),
-                .ALUSrc     	(ALUSrc      ),
-                .ImmSrc     	(ImmSrc      ),
-                .RegWrite   	(RegWrite    )
+                .op         	(instrD[6:0]          ),
+                .funct3     	(instrD[14:12]      ),
+                .funct7b5   	(instrD[30]    ),
+                // .zero       	(zero        ), // from ALU
+                .jump       	(jumpD       ),
+                .branch     	(branchD     ),
+                // .PCSrc      	(PCSrc       ),
+                .ResultSrc  	(ResultSrcD   ),
+                .MemWrite   	(write_enaD    ),
+                .ALUControl 	(ALUControlD  ),
+                .ALUSrc     	(ALUSrcD      ),
+                .ImmSrc     	(ImmSrcD      ),
+                .RegWrite   	(RegWriteD    )
             );
 
     // output declaration of module hazardunit
@@ -81,35 +108,37 @@ module RISCVsingle(
 
     wire [31:0] rd2;
     assign write_data=rd2;
-    wire [31:0] wd3;
+    wire [31:0] result;
+    // TODO: RegWrite, a3 and wd3 unchanged.
     regfile u_regfile(
                 .clk 	(clk  ),
                 .we3 	(RegWrite  ),
-                .a1  	(instr[19:15]   ),
-                .a2  	(instr[24:20]   ),
-                .a3  	(instr[11:7]   ),
-                .wd3 	(wd3  ),
+                .a1  	(instrD[19:15]   ),
+                .a2  	(instrD[24:20]   ),
+                .a3  	(instrD[11:7]   ),
+                .wd3 	(result  ),
+                // rd1 and rd2 remain unchanged into the third pipeline register
                 .rd1 	(rd1  ),
                 .rd2 	(rd2  )
             );
 
     // output declaration of module extend
-    wire [31:0] ImmExt;
+    wire [31:0] ImmExtD;
 
     extend u_extend(
-               .instr  	(instr   ),
-               .ImmSrc 	(ImmSrc  ),
-               .out    	(ImmExt     )
+               .instr  	(instrD[31:7]   ),
+               .ImmSrc 	(ImmSrcD  ),
+               .out    	(ImmExtD     )
            );
 
     // pc logic
     // output declaration of module adder
-    wire [31:0] PCPlus4;
+    wire [31:0] PCPlus4F;
 
     adder u_adder(
               .a   	(pc    ),
               .b   	(4    ),
-              .sum 	(PCPlus4  )
+              .sum 	(PCPlus4F  )
           );
 
     // output declaration of module adder
@@ -124,10 +153,11 @@ module RISCVsingle(
     // output declaration of module mux2
     wire [WIDTH-1:0] PCNext;
 
+    // TODO:PCTarget and PCSrc unchanged
     mux2 #(
              .WIDTH 	(32))
          u_mux2(
-             .a   	(PCPlus4    ),
+             .a   	(PCPlus4F    ),
              .b   	(PCTarget    ),
              .sel 	(PCSrc      ),
              .out 	(PCNext  )
@@ -170,7 +200,7 @@ module RISCVsingle(
              .b   	(read_data    ),
              .c   	(PCPlus4  ),
              .sel 	(ResultSrc  ),
-             .out 	(wd3  )
+             .out 	(result  )
          );
 
     // output declaration of module mux2

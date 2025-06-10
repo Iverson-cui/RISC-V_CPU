@@ -3,8 +3,13 @@ module control
         input [6:0] op,
         input [2:0] funct3,
         input funct7b5,
-        input zero,
-        output PCSrc,
+        // in pipeline, zero is not needed.
+        // input zero
+        ,
+        //output PCSrc,
+        // in pipeline, remove PCSrc, add Jump and Branch. PCSrc is out of control now, a individual signal.
+        output jump,
+        output branch,
         output [1:0] ResultSrc,
         output MemWrite,
         output [2:0] ALUControl,
@@ -14,22 +19,20 @@ module control
     );
 
     // output declaration of module maindec
-    wire Branch;
-    wire Jump;
     wire [1:0] ALUOp;
 
     maindec u_maindec(
                 .op        	(op         ),
                 .ResultSrc 	(ResultSrc  ),
                 .MemWrite  	(MemWrite   ),
-                .Branch    	(Branch     ),
+                .Branch    	(branch     ),
                 .ALUSrc    	(ALUSrc     ),
                 .RegWrite  	(RegWrite   ),
-                .Jump      	(Jump       ),
+                .Jump      	(jump       ),
                 .ImmSrc    	(ImmSrc     ),
                 .ALUOp     	(ALUOp      )
             );
-    assign PCSrc=Jump | (Branch & zero); // PCSrc = Jump or Branch and zero
+    // assign PCSrc=Jump | (Branch & zero); // PCSrc = Jump or Branch and zero
 
     // output declaration of module aludec
     reg [2:0] ALUControl;
