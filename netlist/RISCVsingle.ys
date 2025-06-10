@@ -1,0 +1,13 @@
+read_verilog -sv -formal -overwrite {workspace}/control.v
+read_verilog -sv -formal -overwrite {workspace}/maindec.v
+read_verilog -sv -formal -overwrite {workspace}/aludec.v
+read_verilog -sv -formal -overwrite {workspace}/alu.v
+read_verilog -sv -formal -overwrite {workspace}/regfile.v
+read_verilog -sv -formal -overwrite {workspace}/extend.v
+read_verilog -sv -formal -overwrite {workspace}/adder.v
+read_verilog -sv -formal -overwrite {workspace}/mux2.v
+read_verilog -sv -formal -overwrite {workspace}/flopr.v
+read_verilog -sv -formal -overwrite {workspace}/mux3.v
+read_verilog -sv -formal -overwrite {workspace}/RISCVsingle.v
+design -reset-vlog; proc;
+write_json {workspace}/netlist/RISCVsingle.json
