@@ -12,13 +12,16 @@ module RISCVsingle(
 
     // second pipeline register
     // output declaration of module param_dff
-    wire [95:0] q;
+    wire [95:0] q2;
     wire[31:0] PCPlus4D;
     wire[31:0] pcD;
     wire[31:0] instrD;
     wire [4:0] Rs1D;
-    wire [4;0] Rs2D;
-    wire [4;0] RdD;
+    wire [4:0] Rs2D;
+    wire [4:0] RdD;
+    assign Rs1D = instrD[19:15];
+    assign Rs2D = instrD[24:20];
+    assign RdD = instrD[11:7];
 
     param_dff #(
                   .WIDTH 	(96  ))
@@ -28,12 +31,12 @@ module RISCVsingle(
                   .flush 	(FlushD  ),
                   .stall 	(StallD  ),
                   .d     	({instr,pc,PCPlus4F}     ),
-                  .q     	(q      )
+                  .q     	(q2      )
               );
 
-    assign q[31:0]=PCPlus4D;
-    assign q[63:32]=pcD;
-    assign q[92:64]=instrD;
+    assign q2[31:0]=PCPlus4D;
+    assign q2[63:32]=pcD;
+    assign q2[92:64]=instrD;
     // output declaration of module control
     wire jumpD;
     wire branchD;
@@ -42,7 +45,7 @@ module RISCVsingle(
     wire ALUSrcD;
     wire [1:0] ImmSrcD;
     wire RegWriteD;
-    //wire zero;
+    wire zeroE;
     control u_control(
                 .op         	(instrD[6:0]          ),
                 .funct3     	(instrD[14:12]      ),
@@ -67,6 +70,7 @@ module RISCVsingle(
     wire FlushE;
     wire [1:0] ForwardAE;
     wire [1:0] ForwardBE;
+    wire PCSrcE;
 
     hazardunit u_hazardunit(
                    .Rs1D        	(Rs1D         ),
@@ -92,18 +96,20 @@ module RISCVsingle(
 
 
     // output declaration of module alu
-    wire [31:0] ALUResult;
-    wire [31:0] rd1;
-    wire [31:0] SrcB;
+    wire [31:0] ALUResultE;
+    wire [31:0] SrcAE;
+    wire [31:0] SrcBE;
     alu u_alu(
-            .a          	(rd1           ),
-            .b          	(SrcB          ),
-            .ALUControl 	(ALUControl  ),
-            .result     	(ALUResult      ),
-            .zero       	(zero        )
+            .a          	(SrcAE           ),
+            .b          	(SrcBE          ),
+            .ALUControl 	(ALUControlE  ),
+            .result     	(ALUResultE      ),
+            .zero       	(zeroE        )
         );
 
-    assign DataAddr=ALUResult;
+    assign PCSrcE= (ZeroE & branchE) | jumpE;
+
+    assign DataAddr=ALUResultE;
     // output declaration of module regfile
 
     wire [31:0] rd2;
@@ -131,6 +137,91 @@ module RISCVsingle(
                .out    	(ImmExtD     )
            );
 
+
+    // output declaration of module mux3 RD1E
+
+    // b and c remain unchanged.
+    mux3 #(
+             .WIDTH 	(32  ))
+         u_mux3(
+             .a   	(rd1E    ),
+             .b   	(b    ),
+             .c   	(c    ),
+             .sel 	(ForwardAE  ),
+             .out 	(SrcAE  )
+         );
+
+    // output declaration of module mux3 RD2E
+    // b and c remain unchanged.
+    wire [31:0] WriteDataE;
+    mux3 #(
+             .WIDTH 	(32  ))
+         u_mux3(
+             .a   	(rd2E    ),
+             .b   	(b    ),
+             .c   	(c    ),
+             .sel 	(ForwardBE  ),
+             .out 	(WriteDataE  )
+         );
+
+    // output declaration of module mux2 SrcBE
+    // wire [31:0] out;
+
+    mux2 #(
+             .WIDTH 	(32  ))
+         u_mux2(
+             .a   	(WriteDataE    ),
+             .b   	(ImmExtD    ),
+             .sel 	(ALUSrcE  ),
+             .out 	(SrcBE  )
+         );
+
+
+
+
+    // third pipeline register
+    // output declaration of module param_dff
+    // 6 words
+    wire [191:0] q3;
+
+    param_dff #(
+                  .WIDTH 	(192  ))
+              u_param_dff(
+                  .clk   	(clk    ),
+                  .rst_n 	(~reset  ),
+                  .flush 	(FlushE  ),
+                  .stall 	(0  ),
+                  .d     	({rd1,rd2,pcD,ImmExtD,PCPlus4D,RegWriteD,ResultSrcD,write_enaD,jumpD,branchD,ALUControlD,ALUSrcD,Rs1D,Rs2D,RdD}      ),
+                  .q     	(q3      )
+              );
+    // Assign individual signals from the 192-bit output
+    wire [31:0] rd1E, rd2E, pcE, ImmExtE, PCPlus4E;
+    wire RegWriteE;
+    wire [1:0] ResultSrcE;
+    wire MemWriteE;
+    wire jumpE, branchE;
+    wire [2:0] ALUControlE;
+    wire ALUSrcE;
+    wire [4:0] Rs1E, Rs2E, RdE;
+    assign rd1E = q3[191:160];        // 32 bits
+    assign rd2E = q3[159:128];        // 32 bits
+    assign pcE = q3[127:96];          // 32 bits
+    assign ImmExtE = q3[95:64];       // 32 bits
+    assign PCPlus4E = q3[63:32];      // 32 bits
+    assign RegWriteE = q3[31];        // 1 bit
+    assign ResultSrcE = q3[30:29];    // 2 bits
+    assign MemWriteE = q3[28];       // 1 bit
+    assign jumpE = q3[27];            // 1 bit
+    assign branchE = q3[26];          // 1 bit
+    assign ALUControlE = q3[25:23];   // 3 bits
+    assign ALUSrcE = q3[22];          // 1 bit
+    assign Rs1E = q3[21:17];          // 5 bits
+    assign Rs2E = q3[16:12];          // 5 bits
+    assign RdE = q3[11:7];            // 5 bits
+
+
+
+
     // pc logic
     // output declaration of module adder
     wire [31:0] PCPlus4F;
@@ -142,12 +233,12 @@ module RISCVsingle(
           );
 
     // output declaration of module adder
-    wire [31:0] PCTarget;
+    wire [31:0] PCTargetE;
 
     adder u_adder_target(
-              .a   	(pc    ),
-              .b   	(ImmExt    ),
-              .sum 	(PCTarget  )
+              .a   	(pcE    ),
+              .b   	(ImmExtE    ),
+              .sum 	(PCTargetE  )
           );
 
     // output declaration of module mux2
