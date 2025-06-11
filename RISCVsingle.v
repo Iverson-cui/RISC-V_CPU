@@ -112,6 +112,42 @@ module RISCVsingle(
     assign DataAddr=ALUResultE;
     // output declaration of module regfile
 
+    // forth pipeline register
+    // output declaration of module param_dff
+    reg [127:0] q4;
+
+    param_dff #(
+                  .WIDTH 	(128  ))
+              u_param_dff(
+                  .clk   	(clk    ),
+                  .rst_n 	(~reset  ),
+                  .flush 	(0  ),
+                  .stall 	(0  ),
+                  .d     	({ALUResultE,WriteDataE,PCPlus4E,RegWriteE,ResultSrcE,MemWriteE,RdE}     ),
+                  .q     	(q4      )
+              );
+
+    // {ALUResultM,WriteDataM,PCPlus4M,RegWriteM,ResultSrcM,MemWriteM,RdM}
+    wire [31:0] ALUResultM, WriteDataM, PCPlus4M;
+    wire RegWriteM;
+    wire [1:0] ResultSrcM;
+    wire MemWriteM;
+    wire [4:0] RdM;
+    assign ALUResultM = q4[127:96];  // 32 bits
+    assign WriteDataM = q4[95:64];    // 32 bits
+    assign PCPlus4M = q4[63:32];      // 32 bits
+    assign RegWriteM = q4[31];        // 1 bit
+    assign ResultSrcM = q4[30:29];    // 2 bits
+    assign MemWriteM = q4[28];       // 1 bit
+    assign RdM = q4[27:23];           // 5 bits
+
+    // connect output with the signals
+    assign DataAddr = ALUResultM;
+    assign write_ena = MemWriteM;
+    assign write_data = WriteDataM;
+    wire [31:0] ReadDataW;
+    assign ReadDataW = read_data;
+
     wire [31:0] rd2;
     assign write_data=rd2;
     wire [31:0] result;
