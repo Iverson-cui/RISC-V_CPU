@@ -145,20 +145,20 @@ module RISCVsingle(
     assign DataAddr = ALUResultM;
     assign write_ena = MemWriteM;
     assign write_data = WriteDataM;
-    wire [31:0] ReadDataW;
-    assign ReadDataW = read_data;
+    wire [31:0] M;
+    assign ReadDataM = read_data;
 
     wire [31:0] rd2;
     assign write_data=rd2;
     wire [31:0] result;
-    // TODO: RegWrite, a3 and wd3 unchanged.
+
     regfile u_regfile(
                 .clk 	(clk  ),
-                .we3 	(RegWrite  ),
+                .we3 	(RegWriteW  ),
                 .a1  	(instrD[19:15]   ),
                 .a2  	(instrD[24:20]   ),
-                .a3  	(instrD[11:7]   ),
-                .wd3 	(result  ),
+                .a3  	(RdW   ),
+                .wd3 	(ResultW  ),
                 // rd1 and rd2 remain unchanged into the third pipeline register
                 .rd1 	(rd1  ),
                 .rd2 	(rd2  )
@@ -278,15 +278,14 @@ module RISCVsingle(
           );
 
     // output declaration of module mux2
-    wire [WIDTH-1:0] PCNext;
+    wire [31:0] PCNext;
 
-    // TODO:PCTarget and PCSrc unchanged
     mux2 #(
              .WIDTH 	(32))
          u_mux2(
              .a   	(PCPlus4F    ),
-             .b   	(PCTarget    ),
-             .sel 	(PCSrc      ),
+             .b   	(PCTargetE    ),
+             .sel 	(PCSrcE      ),
              .out 	(PCNext  )
          );
 
@@ -340,5 +339,55 @@ module RISCVsingle(
              .sel 	(ALUSrc    ),
              .out 	(SrcB      )
          );
+
+    // fifth pipeline register
+    // output declaration of module param_dff
+    reg [127:0] q5;
+
+    param_dff #(
+                  .WIDTH 	(128  ))
+              u_param_dff(
+                  .clk   	(clk    ),
+                  .rst_n 	(~reset  ),
+                  .flush 	(0  ),
+                  .stall 	(0  ),
+                  .d     	({ALUResultM,ReadDataM,PCPlus4M,RegWriteM,ResultSrcM,RdM}     ),
+                  .q     	(q5      )
+              );
+
+    wire [31:0] ALUResultW, ReadDataW, PCPlus4W;
+    wire RegWriteW;
+    wire [1;0] ResultSrcW;
+    wire [4:0] RdW;
+    assign ALUResultW = q5[127:96];  // 32 bits
+    assign ReadDataW = q5[95:64];    // 32 bits
+    assign PCPlus4W = q5[63:32];      // 32 bits
+    assign RegWriteW = q5[31];        // 1 bit
+    assign ResultSrcW = q5[30:29];    // 2 bits
+    assign RdW = q5[27:23];           // 5 bits
+
+    // output declaration of module mux3 ReadDataW
+    wire [31:0] ResultW;
+
+    mux3 #(
+             .WIDTH 	(32  ))
+         u_mux3(
+             .a   	(ALUResultW    ),
+             .b   	(ReadDataW    ),
+             .c   	(PCPlus4W  ),
+             .sel 	(ResultSrcW  ),
+             .out 	(ResultW  )
+         );
+
+
+
+endmodule
+
+.c   	(c    ),
+      .sel 	(sel  ),
+      .out 	(out  )
+      );
+
+
 
 endmodule
